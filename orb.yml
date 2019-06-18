@@ -1,0 +1,117 @@
+commands:
+  test:
+    parameters:
+      coverage-report-path:
+        default: coverage.out
+        description: |
+          Path to go coverage report output (go test -coverprofile=coverage.out)
+        type: string
+      repo-name:
+        default: CIRCLE_PROJECT_REPONAME
+        type: env_var_name
+      repo-owner:
+        default: CIRCLE_PROJECT_USERNAME
+        type: env_var_name
+      tests-report-path:
+        default: report.json
+        description: |
+          Path to go test report output (go test -json > report.json)
+        type: string
+    steps:
+    - run:
+        command: |
+          go test \
+          -json \
+          -cover \
+          -coverprofile << parameters.coverage-report-path >> \
+          -mod readonly \
+          github.com/${<< parameters.repo-owner >>}/${<< parameters.repo-name >>}/... \
+            > << parameters.tests-report-path >>
+        name: Run go test
+    - store_artifacts:
+        destination: go-test-report.json
+        path: << parameters.tests-report-path >>
+description: Go build and test
+examples:
+  golang:
+    description: Usage of xav/golangci orb
+    usage:
+      orbs:
+        golang: xav/golang@volatile
+      version: 2.1
+      workflows:
+        build:
+          jobs:
+          - golang/test
+executors:
+  default:
+    docker:
+    - image: golang:<< parameters.go-version >>
+    parameters:
+      go-version:
+        default: "1.12"
+        type: string
+jobs:
+  test:
+    executor: default
+    parameters:
+      attach-workspace:
+        default: true
+        description: |
+          Boolean for whether or not to attach to an existing workspace. Default is false.
+        type: boolean
+      checkout:
+        default: true
+        description: |
+          Boolean for whether or not to checkout as a first step. Default is true.
+        type: boolean
+      coverage-report-path:
+        default: coverage.out
+        description: |
+          Path to go coverage report output (go test -coverprofile=coverage.out)
+        type: string
+      persist-to-workspace:
+        default: true
+        description: |
+          Should this job persist files to a workspace? Defaults to true
+        type: boolean
+      repo-name:
+        default: CIRCLE_PROJECT_REPONAME
+        type: env_var_name
+      repo-owner:
+        default: CIRCLE_PROJECT_USERNAME
+        type: env_var_name
+      tests-report-path:
+        default: report.json
+        description: |
+          Path to go test report output (go test -json > report.json)
+        type: string
+      workspace-root:
+        default: .
+        description: |
+          Workspace root path that is either an absolute path or a path relative to the working directory. Defaults to '.' (the working directory)
+        type: string
+    steps:
+    - when:
+        condition: << parameters.checkout >>
+        steps:
+        - checkout
+    - when:
+        condition: << parameters.attach-workspace >>
+        steps:
+        - attach_workspace:
+            at: << parameters.workspace-root >>
+    - test:
+        coverage-report-path: << parameters.coverage-report-path >>
+        repo-name: << parameters.repo-name >>
+        repo-owner: << parameters.repo-owner >>
+        tests-report-path: << parameters.tests-report-path >>
+    - when:
+        condition: << parameters.persist-to-workspace >>
+        steps:
+        - persist_to_workspace:
+            paths:
+            - << parameters.coverage-report-path >>
+            - << parameters.tests-report-path >>
+            root: << parameters.workspace-root >>
+version: 2.1
